@@ -6,7 +6,7 @@
 1. Клонируйте репозиторий:
    ```bash
    git clone https://github.com/Z0XX1/Quiz-TGBot.git
-   cd quiz-telegram-bot
+   cd Quiz-TGBot
    ```
 
 2. Убедитесь, что у вас установлен Python 3.12 или выше.
