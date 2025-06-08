@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 
-TOKEN = "YOUR BOT TOKEN"
+TOKEN = "7338909037:AAED7iP52s5ErSe0bFlhX3JIeNHWAdIrBqk"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -18,7 +18,7 @@ def load_questions(filename="questions.json"):
     with open(filename, encoding="utf-8") as f:
         return json.load(f)
     
-QUESTIONS = load_questions()
+QUESTIONS = load_questions("C:/Users/helpz/Desktop/project/questions.json")
 
 user_sessions = {}
 
@@ -29,7 +29,7 @@ async def send_question(user_id: int):
     # Отправка следующего вопроса если они есть
     if session["current"] < len(session["questions"]):
         current_q = session["questions"][session["current"]]
-        text = f"Вопрос {session['current']+1}: {current_q['question']}"
+        text = f"Вопрос {session['current']+1}/{len(session['questions'])}: {current_q['question']}"
         
         # Создание списка кнопок | Каждая кнопка находится в своем ряду
         buttons = [
@@ -46,7 +46,8 @@ async def send_question(user_id: int):
         await bot.send_message(user_id, f"🎊 Поздравляю, викторина завершена!\n✅ Ваш результат: {score}/{total}\n📊 Посмотреть свою статистику: /stats")
         user_sessions.pop(user_id)
 
-@dp.callback_query(lambda c: c.data and c.data.startswith("quiz:"))
+#lambda c: c.data and c.data.startswith
+@dp.callback_query(F.data.startswith("quiz:"))
 async def process_answer(callback_query: types.CallbackQuery):
     user_id = callback_query.from_user.id
     session = user_sessions.get(user_id)
@@ -76,6 +77,36 @@ async def process_answer(callback_query: types.CallbackQuery):
     session["current"] += 1
     await send_question(user_id)
 
+# ========== ВЫБОР КОЛ-ВА ВОПРОСОВ ========== #
+
+@dp.callback_query(F.data.startswith("quiz_amount:"))
+async def choose_quiz_amount(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+
+    try:
+        amount = int(callback_query.data.split(":", 1)[1])
+    except (IndexError, ValueError):
+        await callback_query.answer("Неверные данные! 🐽", show_alert=True)
+        return
+
+    if len(QUESTIONS) >= amount:
+        selected = random.sample(QUESTIONS, amount)
+    else:
+        selected = QUESTIONS.copy()
+
+    user_sessions[user_id] = {
+        "questions": selected,
+        "current": 0,
+        "score": 0
+    }
+
+    await callback_query.message.edit_text(
+        f"✅ Вы выбрали квиз из {len(selected)} вопросов. Поехали!"
+    )
+    await callback_query.answer()
+
+    await send_question(user_id)
+
 # ========== КОМАНДЫ ========== #
 
 # Команда /start
@@ -90,20 +121,16 @@ async def cmd_help(message: Message):
 
 # Команда /quiz 
 @dp.message(Command("quiz"))
-async def start_quiz(message: types.Message):
-    # Если вопросов меньше 10 берём все иначе случайные 10
-    if len(QUESTIONS) >= 10:
-        quiz_questions = random.sample(QUESTIONS, 10)
-    else:
-        quiz_questions = QUESTIONS.copy()
-
-    # Инициализация сессии пользователя | Список вопросов, текущий вопрос и кол-во правильных ответов.
-    user_sessions[message.from_user.id] = {
-         "questions": quiz_questions,
-         "current": 0,
-         "score": 0
-    }
-    await send_question(message.from_user.id)
+async def start_quiz(message: Message):
+    # Формируем три кнопки с вариантами: 10, 25, 40 вопросов
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="10 вопросов", callback_data="quiz_amount:10")],
+            [InlineKeyboardButton(text="25 вопросов", callback_data="quiz_amount:25")],
+            [InlineKeyboardButton(text="40 вопросов", callback_data="quiz_amount:40")]
+        ]
+    )
+    await message.answer("♻️ Выберите, сколько вопросов вы хотите пройти", reply_markup=kb)
 
 # Команда /stats (soon)
 
